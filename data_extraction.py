@@ -2,12 +2,12 @@ import game
 from baseline_player import BaselinePlayer, TBaselinePlayer, RandomPlayer
 import random
 
-player_pool = [BaselinePlayer(), TBaselinePlayer(0.3, 0.3), TBaselinePlayer(),
-               TBaselinePlayer(0, 0.7), RandomPlayer()]
+player_pool = [BaselinePlayer(), TBaselinePlayer(0.3, 0.3, 0.7), TBaselinePlayer(),
+               TBaselinePlayer(0, 0.7, 0.3), RandomPlayer()]
 import numpy as np
 
 
-def collect_data(players, rounds=100000, seed=92122):
+def collect_data(players, rounds=200000, seed=92122):
     features = []
     strategies = []
     rng = random.Random(seed)
@@ -16,7 +16,9 @@ def collect_data(players, rounds=100000, seed=92122):
         state = game.init_game(seed=rng.randint(0, 100000), real=rng.randint(1,10),
                                fake=rng.randint(1,10), heal=rng.randint(0,2),
                                reveal=rng.randint(0,2),
-                               damage_per_shot=int(100 / rng.randint(2,10))+1)
+                               damage_per_shot=int(100 / rng.randint(2,10))+1,
+                               skip_round=rng.randint(0,2), skip_bullet=rng.randint(0,2),
+                               double=rng.randint(0,2))
         res, _, f, s = game.run_game(state, player1, player2)
         winner = 1 if res < 0 else 0
         features.extend(f[winner])

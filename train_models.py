@@ -12,7 +12,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-MODEL = "mlp"   # "lr" | "rf" | "mlp"
+MODEL = "lr"   # "lr" | "rf" | "mlp"
 DATA_PATH = "data/dataset_v1.npz"
 MODEL_DIR = "models"
 RANDOM_SEED = 81925
@@ -38,7 +38,6 @@ def build_model(model_name: str):
     if model_name == "lr":
         return LogisticRegression(
             max_iter=2000,
-            multi_class="multinomial",
             n_jobs=-1,
             random_state=RANDOM_SEED,
         )
@@ -84,7 +83,7 @@ def train_from_npz(data_path: str, model_name: str):
     print(classification_report(y_test, y_pred, digits=4))
 
     print("=== Confusion matrix (rows=true, cols=pred) ===")
-    print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2, 3]))
+    print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2, 3, 4, 5, 6]))
 
     return clf
 
@@ -140,8 +139,8 @@ def main():
     # Baselines for evaluation
     baseline = BaselinePlayer()
     rand = RandomPlayer(seed=RANDOM_SEED)
-    tbase_1 = TBaselinePlayer(t_shoot=0.5, t_reveal=0.2)
-    tbase_2 = TBaselinePlayer(t_shoot=0.7, t_reveal=0.2)
+    tbase_1 = TBaselinePlayer(t_shoot=0.5, t_reveal=0.2, t_use=0.3)
+    tbase_2 = TBaselinePlayer(t_shoot=0.7, t_reveal=0.2, t_use=0.5)
 
     print("\n==============================")
     print("Evaluation: Canonical setting")
@@ -157,7 +156,7 @@ def main():
     print(metrics_mb)
 
     metrics_mt = play_many_games(model_player, tbase_1, EVAL_GAMES, EVAL_SEED0 + 300000, CANONICAL_ENV)
-    print("\n[Model vs TBaseline(0.5,0.2)]")
+    print("\n[Model vs TBaseline(0.5,0.2,0.3)]")
     print(metrics_mt)
 
     metrics_mr = play_many_games(model_player, rand, EVAL_GAMES, EVAL_SEED0 + 400000, CANONICAL_ENV)
@@ -165,7 +164,7 @@ def main():
     print(metrics_mr)
 
     metrics_mt2 = play_many_games(model_player, tbase_2, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
-    print("\n[Model vs TBaseline(0.7,0.2)]")
+    print("\n[Model vs TBaseline(0.7,0.2,0.5)]")
     print(metrics_mt2)
 
 
