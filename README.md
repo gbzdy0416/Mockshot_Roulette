@@ -103,6 +103,30 @@ All methods evaluated on this benchmark must follow the canonical evaluation pro
 
 All evaluations are conducted under a canonical game setting for fair comparison.
 
+### Expected Results (Canonical Setting)
+
+All results are averaged over 10,000 games with randomized starting player.
+
+| Method           | Win Rate vs Baseline | Draw Rate | Avg Score |
+|------------------|----------------------|-----------|-----------|
+| Baseline         | ~0.40                | ~0.16     | ≈ 0       |
+| Random           | ~0.07                | ~0.04     | << 0      |
+| Logistic Reg. BC | ~0.34                | ~0.12     | < 0       |
+| MLP BC           | ~0.32                | ~0.11     | < 0       |
+| TBaseline (0.7)  | ~0.28                | ~0.14     | < 0       |
+| Rollout (n=5)    | ~0.81                | ~0.01     | > 0       |
+| Rollout (n=10)   | ~0.82                | ~0.01     | > 0       |
+
+### Performance Against Planning-Based Agents
+
+| Method           | Win Rate vs Rollout (n=5) |
+|------------------|---------------------------|
+| Random           | ~0.003                    |
+| Logistic Reg. BC | ~0.12                     |
+| MLP BC           | ~0.11                     |
+| Rollout (n=5)    | ~0.48                     |
+| Rollout (n=10)   | ~0.49                     |
+
 ---
 
 ## Repository Structure
