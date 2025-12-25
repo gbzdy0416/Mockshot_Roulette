@@ -22,7 +22,8 @@ EVAL_GAMES = 10000
 EVAL_SEED0 = 92122
 
 # Canonical (fixed) environment config for evaluation
-CANONICAL_ENV = dict(real=5, fake=5, heal=1, reveal=1, damage_per_shot=34)
+CANONICAL_ENV = dict(real=5, fake=5, heal=1, reveal=1, damage_per_shot=34,
+                     skip_bullet=1, double=1, skip_round=1, begin=None, reveal_random=1)
 
 
 class ModelPlayer(game.Player):

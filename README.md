@@ -1,6 +1,8 @@
 # Mockshot Roulette: a controlled decision-making benchmark inspired from the game "Buckshot Roulette".
-This repository contains a controlled decision-making benchmark where agents operate under partial observability and must balance risky actions, information acquisition, and limited resources.  
-The project investigates whether learning-based policies can systematically outperform human-designed heuristics in such settings.
+Mockshot Roulette is a controlled two-player decision-making benchmark inspired by the game "Buckshot Roulette".
+The benchmark is designed to study decision robustness under partial observability, non-linear action interactions, and limited resources.
+
+Rather than optimizing for a single learning algorithm, the benchmark focuses on evaluating how different inductive biases perform under identical evaluation protocols.
 
 ---
 
@@ -20,15 +22,31 @@ The environment serves as a benchmark to evaluate decision-making policies train
 ## Environment
 
 Each episode consists of a finite sequence of actions drawn from a hidden binary state (e.g., risky vs. safe outcomes).  
-At each turn, an agent chooses one of four actions:
+At each turn, an agent chooses one of the following discrete actions:
 
-- **Shoot self**
-- **Shoot opponent**
-- **Heal** (resource-limited)
-- **Reveal** the current hidden state (resource-limited)
+| ID | Action | Description |
+|----|-------|-------------|
+| 0 | Shoot self | Fire the current bullet at self |
+| 1 | Shoot opponent | Fire the current bullet at opponent |
+| 2 | Heal | Restore health (limited resource) |
+| 3 | Reveal | Reveal the current bullet |
+| 4 | Double | Double damage of current bullet |
+| 5 | Skip round | Skip opponent’s next turn |
+| 6 | Skip bullet | Skip the current bullet |
+| 7 | Random reveal | Reveal a random bullet |
+
 
 The game terminates when either agent’s health reaches zero or when all actions are exhausted.  
 The final reward is defined as the health difference between the two agents.
+
+### Observations and Information Structure
+
+The game is partially observable.
+- Public information includes remaining bullets, both players’ health, and item counts.
+- Private information includes outcomes revealed via reveal or random reveal actions.
+- The true order of unrevealed bullets is hidden from both players.
+
+Agents receive observations derived from public state and their own private information only.
 
 ---
 
@@ -39,6 +57,9 @@ We implement multiple heuristic baselines to reflect human-designed strategies:
 - **Rule-based Baseline**: deterministic logic using health thresholds and estimated risk
 - **Threshold Baselines**: parameterized heuristics controlling aggressiveness and information usage
 - **Random Policy**: random action selection
+- **Rollout Baselines**: simulate a play with another baseline player to determine its action
+
+Rollout agents are intended as strong planning-based reference policies rather than optimal solutions.
 
 These baselines provide strong, interpretable reference points for evaluation.
 
@@ -58,7 +79,16 @@ Models are trained on state–action pairs collected from self-play among heuris
 
 ## Evaluation
 
-We evaluate learned policies using two complementary protocols:
+All methods evaluated on this benchmark must follow the canonical evaluation protocol below.
+### Canonical environment
+- real=fake=5
+- damage=34
+- items=1
+
+### Evaluation
+- games=10000
+- begin with randomly chosen player
+- seed=92122
 
 ### Offline Evaluation
 - Multi-class action prediction accuracy
