@@ -13,7 +13,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-MODEL = "mlp"   # "lr" | "rf" | "mlp"
+MODEL = "lr"   # "lr" | "rf" | "mlp"
 DATA_PATH = "data/dataset_v1.npz"
 MODEL_DIR = "models"
 RANDOM_SEED = 81925
@@ -39,7 +39,6 @@ def build_model(model_name: str):
     if model_name == "lr":
         return LogisticRegression(
             max_iter=2000,
-            n_jobs=-1,
             random_state=RANDOM_SEED,
         )
     if model_name == "rf":
@@ -53,9 +52,9 @@ def build_model(model_name: str):
         return Pipeline([
             ("scaler", StandardScaler()),
             ("mlp", MLPClassifier(
-                hidden_layer_sizes=(32, 32),
+                hidden_layer_sizes=(64, 64, 64),
                 alpha=1e-4,
-                max_iter=1000,
+                max_iter=10000,
                 early_stopping=True,
                 random_state=RANDOM_SEED,
             ))
@@ -84,7 +83,7 @@ def train_from_npz(data_path: str, model_name: str):
     print(classification_report(y_test, y_pred, digits=4))
 
     print("=== Confusion matrix (rows=true, cols=pred) ===")
-    print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2, 3, 4, 5, 6]))
+    print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2, 3, 4, 5, 6, 7]))
 
     return clf
 
@@ -146,8 +145,8 @@ def main():
     rand = RandomPlayer(seed=RANDOM_SEED)
     tbase_1 = TBaselinePlayer(t_shoot=0.5, t_reveal=0.2, t_use=0.3)
     tbase_2 = TBaselinePlayer(t_shoot=0.7, t_reveal=0.2, t_use=0.5)
-    r_20 = RolloutPlayer(n_rollouts=20)
-    r_10 = RolloutPlayer(n_rollouts=40)
+    r_5 = RolloutPlayer(n_rollouts=5)
+    r_10 = RolloutPlayer(n_rollouts=10)
     print("\n==============================")
     print("Evaluation: Canonical setting")
     print("==============================")
@@ -169,9 +168,9 @@ def main():
     print("\n[Model vs TBaseline(0.7,0.2,0.5)]")
     print(metrics_mt2)
 
-    metrics_r20 = play_many_games(model_player, r_20, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
-    print("\n[Model vs Rollout(n=20)]")
-    print(metrics_r20)
+    metrics_r5 = play_many_games(model_player, r_5, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
+    print("\n[Model vs Rollout(n=5)]")
+    print(metrics_r5)
 
     metrics_r10 = play_many_games(model_player, r_10, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
     print("\n[Model vs Rollout(n=10)]")
@@ -181,7 +180,7 @@ def main():
     print("\n[Baseline vs Baseline]")
     print(metrics_bb)
 
-    metrics_rr = play_many_games(r_10, r_10, EVAL_GAMES, EVAL_SEED0, CANONICAL_ENV)
+    metrics_rr = play_many_games(r_5, r_5, EVAL_GAMES, EVAL_SEED0, CANONICAL_ENV)
     print("\n[Rollout vs Rollout]")
     print(metrics_rr)
 

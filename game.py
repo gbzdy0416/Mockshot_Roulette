@@ -2,6 +2,7 @@ import copy
 import random
 import abc
 
+rng_global = random.Random(77)
 
 class Player(metaclass=abc.ABCMeta):
     all_type = 'file'
@@ -11,9 +12,9 @@ class Player(metaclass=abc.ABCMeta):
         pass
 
 
-def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, skip_bullet=1, double=1, skip_round=1, begin=None):
+def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, skip_bullet=1, double=1, skip_round=1, begin=None, reveal_random=1):
     rng = random.Random(seed)
-    chamber = [[1, 0] for _ in range(real)] + [[0, 0] for _ in range(fake)]
+    chamber = [[[1], [0,0]] for _ in range(real)] + [[[0], [0,0]] for _ in range(fake)]
     rng.shuffle(chamber)
     state = {
         "chamber": chamber,
@@ -25,6 +26,7 @@ def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, ski
         "damage_per_shot": damage_per_shot,
         "heal_left": [heal, heal],
         "reveal_left": [reveal, reveal],
+        "random_reveal_left": [reveal_random, reveal_random],
         "skip_bullet_left": [skip_bullet, skip_bullet],
         "skip_round_left": [skip_round, skip_round],
         "double_left": [double, double],
@@ -40,11 +42,22 @@ def use_reveal(state):
     if state["pos"] >= len(state["chamber"]):
         raise Exception("Trying to reveal a bullet out of range... There must be a bug!")
     if state["reveal_left"][state["turn"]] > 0:
-        state["chamber"][state["pos"]][1] = 1
+        state["chamber"][state["pos"]][1][state["turn"]] = 1
         state["reveal_left"][state["turn"]] -= 1
     else:
         illegal_penalty(state)
 
+def use_reveal_random(state):
+    if state["pos"] >= len(state["chamber"]):
+        raise Exception("Trying to reveal a bullet out of range... There must be a bug!")
+    if state["random_reveal_left"][state["turn"]] > 0:
+        if state["pos"] == len(state["chamber"]) - 1:
+            state["chamber"][state["pos"]][1][state["turn"]] = 1
+        else:
+            state["chamber"][rng_global.randint(state["pos"]+1, len(state["chamber"])-1)][1][state["turn"]] = 1
+        state["random_reveal_left"][state["turn"]] -= 1
+    else:
+        illegal_penalty(state)
 
 def use_heal(state):
     if state["heal_left"][state["turn"]] > 0:
@@ -82,7 +95,7 @@ def shot(state, goal):
     # goal: 0 to self, 1 to opponent
     if state["pos"] >= len(state["chamber"]):
         raise Exception("Trying to shoot a bullet out of range... There must be a bug!")
-    if state["chamber"][state["pos"]][0] == 1:
+    if state["chamber"][state["pos"]][0][0] == 1:
         state["hp"][state["turn"] ^ goal] -= state["damage_per_shot"] * (state["double_mark"] + 1)
         state["turn"] ^= 1 ^ state["skip_round_mark"]
         state["skip_round_mark"] = 0
@@ -131,6 +144,8 @@ def run_game(state, player1: Player, player2: Player):
             use_skip_round(state) # skip round
         elif strategy == 6:
             use_skip_bullet(state) # skip bullet
+        elif strategy == 7:
+            use_reveal_random(state) # random reveal
         else:
             illegal_penalty(state)
     return check_finish(state), state, state_list, strategy_list
@@ -138,10 +153,11 @@ def run_game(state, player1: Player, player2: Player):
 
 def state_to_feature(state):
     pr_real = state["Left_real"] / (state["Left_real"] + state["Left_fake"] + 10 ** -10)
-    bullet = state["chamber"][state["pos"]][0] if state["chamber"][state["pos"]][1] == 1 else pr_real
+    bullet = state["chamber"][state["pos"]][0][0] if state["chamber"][state["pos"]][1][0] == 1 else pr_real
     hp = (state["hp"][state["turn"]]) / (state["max_hp"])
     heal = 1 if state["heal_left"][state["turn"]] > 0 else 0
     reveal = 1 if state["reveal_left"][state["turn"]] > 0 else 0
+    random_reveal = 1 if state["random_reveal_left"][state["turn"]] > 0 else 0
     double = 1 if state["double_left"][state["turn"]] > 0 else 0
     skip_round = 1 if state["skip_round_left"][state["turn"]] > 0 else 0
     skip_bullet = 1 if state["skip_bullet_left"][state["turn"]] > 0 else 0
@@ -149,14 +165,15 @@ def state_to_feature(state):
     sr_mark = state["skip_round_mark"]
     heal_opponent = 1 if state["heal_left"][state["turn"] ^ 1] > 0 else 0
     reveal_opponent = 1 if state["reveal_left"][state["turn"] ^ 1] > 0 else 0
+    random_reveal_opponent = 1 if state["random_reveal_left"][state["turn"] ^ 1] > 0 else 0
     double_opponent = 1 if state["double_left"][state["turn"] ^ 1] > 0 else 0
     skip_round_opponent = 1 if state["skip_round_left"][state["turn"] ^ 1] > 0 else 0
     skip_bullet_opponent = 1 if state["skip_bullet_left"][state["turn"] ^ 1] > 0 else 0
     hp_opponent = (state["hp"][state["turn"] ^ 1]) / (state["max_hp"])
-    uncertainty = abs(pr_real - 0.5) * 2
+    uncertainty = 1 - (abs(pr_real - 0.5) * 2)
     pos = state["pos"] / len(state["chamber"])
-    is_revealed = state["chamber"][state["pos"]][1]
+    is_revealed = state["chamber"][state["pos"]][1][state["turn"]]
     hp_diff = hp - hp_opponent
     return [bullet, hp, hp_opponent, heal, reveal, heal_opponent, reveal_opponent, uncertainty, pos, is_revealed,
             hp_diff, double, skip_round, skip_round_opponent, skip_bullet, skip_bullet_opponent, double_opponent,
-            double_mark, sr_mark]
+            double_mark, sr_mark, random_reveal, random_reveal_opponent]

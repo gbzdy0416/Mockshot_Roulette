@@ -12,12 +12,14 @@ class BaselinePlayer(game.Player):
         curbullet = state["chamber"][state["pos"]]
         if heal > 0 and maxhp - curhp >= d:
             return 2
-        elif reveal > 0 and curbullet[1] == 0:
+        elif reveal > 0 and curbullet[1][state["turn"]] == 0:
             return 3
-        elif curbullet[1] == 1:
+        elif curbullet[1][state["turn"]] == 1:
             if state["double_left"][state["turn"]] > 0 and state["double_mark"] == 0 and curbullet[0] == 1:
                 return 4
-            return curbullet[0]  # 0 -> fake -> self, 1 -> real -> opponent
+            return curbullet[0][0]  # 0 -> fake -> self, 1 -> real -> opponent
+        elif state["random_reveal_left"][state["turn"]] > 0:
+            return 7
         elif state["skip_round_left"][state["turn"]] > 0 and state["skip_round_mark"] == 0:
             return 5
         elif state["skip_bullet_left"][state["turn"]] > 0:
@@ -31,11 +33,11 @@ class BaselinePlayer(game.Player):
 
 
 class RandomPlayer(game.Player):
-    def __init__(self, seed=42):
+    def __init__(self, seed=300300):
         self.rng = random.Random(seed)
 
     def decide(self, state):
-        return self.rng.randint(0, 6)
+        return self.rng.randint(0, 7)
 
 
 class TBaselinePlayer(game.Player):
@@ -54,12 +56,14 @@ class TBaselinePlayer(game.Player):
         uncertainty = abs(pr_real - 0.5)
         if heal > 0 and maxhp - curhp >= d:
             return 2
-        elif reveal > 0 and curbullet[1] == 0 and uncertainty <= self.t_reveal:
+        elif reveal > 0 and curbullet[1][state["turn"]] == 0 and uncertainty <= self.t_reveal:
             return 3
-        elif curbullet[1] == 1:
+        elif curbullet[1][state["turn"]] == 1:
             if state["double_left"][state["turn"]] > 0 and state["double_mark"] == 0 and curbullet[0] == 1:
                 return 4
-            return curbullet[0]  # 0 -> fake -> self, 1 -> real -> opponent
+            return curbullet[0][0]  # 0 -> fake -> self, 1 -> real -> opponent
+        elif state["random_reveal_left"][state["turn"]] > 0:
+            return 7
         elif state["skip_round_left"][state["turn"]] > 0 and state["skip_round_mark"] == 0 and uncertainty < self.t_use:
             return 5
         elif state["skip_bullet_left"][state["turn"]] > 0 and uncertainty < self.t_use:
@@ -83,8 +87,7 @@ class RolloutPlayer(game.Player):
         self.rng = random.Random(seed)
 
         # Default rollout policy: a moderately sensible threshold heuristic
-        self.rollout_policy = rollout_policy if rollout_policy is not None else \
-            __import__("baseline_player").TBaselinePlayer(t_shoot=0.6, t_reveal=0.25, t_use=0.4)
+        self.rollout_policy = rollout_policy if rollout_policy is not None else TBaselinePlayer(t_shoot=0.6, t_reveal=0.25, t_use=0.4)
 
     def decide(self, state):
         player_id = state["turn"]
@@ -128,6 +131,8 @@ def legal_actions(state):
         acts.append(5)
     if state["skip_bullet_left"][turn] > 0 and state["pos"] + 1 <= len(state["chamber"]):
         acts.append(6)
+    if state["random_reveal_left"][state["turn"]] > 0:
+        acts.append(7)
 
     return acts
 
@@ -147,5 +152,7 @@ def apply_action(state, action):
         game.use_skip_round(state)
     elif action == 6:
         game.use_skip_bullet(state)
+    elif action == 7:
+        game.use_reveal_random(state)
     else:
         game.illegal_penalty(state)
