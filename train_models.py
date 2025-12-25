@@ -1,23 +1,24 @@
 import os
 import random
+from tqdm.auto import tqdm
 import joblib
 import numpy as np
 import game
-from baseline_player import BaselinePlayer, TBaselinePlayer, RandomPlayer
+from baseline_player import BaselinePlayer, TBaselinePlayer, RandomPlayer, RolloutPlayer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-MODEL = "lr"   # "lr" | "rf" | "mlp"
+MODEL = "mlp"   # "lr" | "rf" | "mlp"
 DATA_PATH = "data/dataset_v1.npz"
 MODEL_DIR = "models"
 RANDOM_SEED = 81925
 
-EVAL_GAMES = 1000
+EVAL_GAMES = 10000
 EVAL_SEED0 = 92122
 
 # Canonical (fixed) environment config for evaluation
@@ -43,18 +44,18 @@ def build_model(model_name: str):
         )
     if model_name == "rf":
         return RandomForestClassifier(
-            n_estimators=300,
-            min_samples_leaf=2,
+            n_estimators=150,
+            max_depth=14,
             n_jobs=-1,
-            random_state=RANDOM_SEED,
+            random_state=RANDOM_SEED
         )
     if model_name == "mlp":
         return Pipeline([
             ("scaler", StandardScaler()),
             ("mlp", MLPClassifier(
-                hidden_layer_sizes=(16, 16),
+                hidden_layer_sizes=(32, 32),
                 alpha=1e-4,
-                max_iter=200,
+                max_iter=1000,
                 early_stopping=True,
                 random_state=RANDOM_SEED,
             ))
@@ -94,7 +95,11 @@ def play_many_games(player0, player1, n_games: int, seed0: int, env_kwargs: dict
     illegal0 = 0
     illegal1 = 0
 
-    for i in range(n_games):
+    for i in tqdm(
+            range(n_games),
+            desc=f"Eval {player0.__class__.__name__} vs {player1.__class__.__name__}",
+            ncols=100
+    ):
         st = game.init_game(seed=seed0 + i, **env_kwargs)
         res, final_state, _, _ = game.run_game(st, player0, player1)
 
@@ -141,16 +146,13 @@ def main():
     rand = RandomPlayer(seed=RANDOM_SEED)
     tbase_1 = TBaselinePlayer(t_shoot=0.5, t_reveal=0.2, t_use=0.3)
     tbase_2 = TBaselinePlayer(t_shoot=0.7, t_reveal=0.2, t_use=0.5)
-
+    r_20 = RolloutPlayer(n_rollouts=20)
+    r_10 = RolloutPlayer(n_rollouts=40)
     print("\n==============================")
     print("Evaluation: Canonical setting")
     print("==============================")
 
     # Control: Baseline vs Baseline should be ~50% win for player0 (up to randomness)
-    metrics_bb = play_many_games(baseline, baseline, EVAL_GAMES, EVAL_SEED0, CANONICAL_ENV)
-    print("\n[Baseline vs Baseline]")
-    print(metrics_bb)
-
     metrics_mb = play_many_games(model_player, baseline, EVAL_GAMES, EVAL_SEED0 + 100000, CANONICAL_ENV)
     print("\n[Model vs Baseline]")
     print(metrics_mb)
@@ -167,6 +169,21 @@ def main():
     print("\n[Model vs TBaseline(0.7,0.2,0.5)]")
     print(metrics_mt2)
 
+    metrics_r20 = play_many_games(model_player, r_20, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
+    print("\n[Model vs Rollout(n=20)]")
+    print(metrics_r20)
+
+    metrics_r10 = play_many_games(model_player, r_10, EVAL_GAMES, EVAL_SEED0 + 500000, CANONICAL_ENV)
+    print("\n[Model vs Rollout(n=10)]")
+    print(metrics_r10)
+
+    metrics_bb = play_many_games(baseline, baseline, EVAL_GAMES, EVAL_SEED0, CANONICAL_ENV)
+    print("\n[Baseline vs Baseline]")
+    print(metrics_bb)
+
+    metrics_rr = play_many_games(r_10, r_10, EVAL_GAMES, EVAL_SEED0, CANONICAL_ENV)
+    print("\n[Rollout vs Rollout]")
+    print(metrics_rr)
 
 if __name__ == "__main__":
     main()

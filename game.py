@@ -11,7 +11,7 @@ class Player(metaclass=abc.ABCMeta):
         pass
 
 
-def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, skip_bullet=1, double=1, skip_round=1):
+def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, skip_bullet=1, double=1, skip_round=1, begin=None):
     rng = random.Random(seed)
     chamber = [[1, 0] for _ in range(real)] + [[0, 0] for _ in range(fake)]
     rng.shuffle(chamber)
@@ -30,7 +30,7 @@ def init_game(seed=42, damage_per_shot=34, real=5, fake=5, heal=1, reveal=1, ski
         "double_left": [double, double],
         "skip_round_mark": 0,
         "double_mark": 0,
-        "turn": rng.randint(0, 1),
+        "turn": rng.randint(0, 1) if begin is None else begin % 2,
         "illegal_move": [0, 0],
     }
     return state
