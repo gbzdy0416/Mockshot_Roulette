@@ -89,6 +89,7 @@ All methods evaluated on this benchmark must follow the canonical evaluation pro
 - games=10000
 - begin with randomly chosen player
 - seed=92122
+- weights not used
 
 ### Offline Evaluation
 - Multi-class action prediction accuracy

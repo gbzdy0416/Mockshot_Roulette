@@ -6,14 +6,14 @@ import numpy as np
 import game
 from baseline_player import BaselinePlayer, TBaselinePlayer, RandomPlayer, RolloutPlayer
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix,accuracy_score, balanced_accuracy_score,log_loss
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-MODEL = "lr"   # "lr" | "rf" | "mlp"
+MODEL = "mlp"   # "lr" | "rf" | "mlp"
 DATA_PATH = "data/dataset_v1.npz"
 MODEL_DIR = "models"
 RANDOM_SEED = 81925
@@ -67,24 +67,50 @@ def train_from_npz(data_path: str, model_name: str):
     data = np.load(data_path)
     X = data["X"].astype(np.float32)
     y = data["y"].astype(np.int64)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
+    weights = data["weights"].astype(np.float32)
+    X_train, X_test, y_train, y_test, w_train, w_test = train_test_split(
+        X, y, weights,
         test_size=0.2,
         random_state=RANDOM_SEED,
         stratify=y
     )
 
     clf = build_model(model_name)
-    clf.fit(X_train, y_train)
+
+    fit_kwargs = {}
+    if model_name == "mlp":
+        fit_kwargs["mlp__sample_weight"] = w_train
+    else:
+        fit_kwargs["sample_weight"] = w_train
+
+    clf.fit(X_train, y_train, **fit_kwargs)
 
     y_pred = clf.predict(X_test)
 
-    print("\n=== Classification report ===")
-    print(classification_report(y_test, y_pred, digits=4))
+    labels = list(range(8))
+    print("\n=== Unweighted report ===")
+    print(classification_report(y_test, y_pred, labels=labels, digits=4))
+    print("Unweighted accuracy:", accuracy_score(y_test, y_pred))
+    print("Unweighted balanced acc:", balanced_accuracy_score(y_test, y_pred))
+    print("Unweighted confusion:")
+    print(confusion_matrix(y_test, y_pred, labels=labels))
 
-    print("=== Confusion matrix (rows=true, cols=pred) ===")
-    print(confusion_matrix(y_test, y_pred, labels=[0, 1, 2, 3, 4, 5, 6, 7]))
+    print("\n=== Weighted report (by w_test) ===")
+    print(classification_report(y_test, y_pred, labels=labels, digits=4, sample_weight=w_test))
+    print("Weighted accuracy:", accuracy_score(y_test, y_pred, sample_weight=w_test))
+    print("Weighted balanced acc:", balanced_accuracy_score(y_test, y_pred, sample_weight=w_test))
+    print("Weighted confusion:")
+    print(confusion_matrix(y_test, y_pred, labels=labels, sample_weight=w_test))
+
+    if hasattr(clf, "predict_proba"):
+        proba = clf.predict_proba(X_test)
+        print("\nUnweighted logloss:", log_loss(y_test, proba, labels=labels))
+        print("Weighted logloss:", log_loss(y_test, proba, labels=labels, sample_weight=w_test))
+
+    print("\nWeight stats: min/mean/max =", float(w_test.min()), float(w_test.mean()), float(w_test.max()))
+
+    ess = (w_test.sum() ** 2) / (np.square(w_test).sum() + 1e-12)
+    print("Effective sample size (ESS):", float(ess))
 
     return clf
 
